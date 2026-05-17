@@ -1,70 +1,128 @@
 package de.hsbi.lockgame.logic;
 
-import de.hsbi.lockgame.model.*;
+import de.hsbi.lockgame.model.CellType;
+import de.hsbi.lockgame.model.Direction;
+import de.hsbi.lockgame.model.Level;
+import de.hsbi.lockgame.model.Pin;
+import de.hsbi.lockgame.model.Position;
+import de.hsbi.lockgame.model.Snake;
+import java.util.ArrayList;
 import java.util.List;
 
 public final class GameState {
+    private final Level level;
+    private final Snake snake;
+    private final List<Pin> pins;
+    private final Status status;
+    private final Direction pendingDirection;
 
-  public GameState(
-      Level level, Snake snake, List<Pin> pins, Status status, Direction pendingDirection) {
-    // TODO: lege einen neuen GameState mit den übergebenen Informationen an
-    throw new UnsupportedOperationException("method not implemented yet");
-  }
-
-  public Level level() {
-    // TODO: Getter
-    throw new UnsupportedOperationException("method not implemented yet");
-  }
-
-  public Snake snake() {
-    // TODO: Getter
-    throw new UnsupportedOperationException("method not implemented yet");
-  }
-
-  public List<Pin> pins() {
-    // TODO: Getter
-    throw new UnsupportedOperationException("method not implemented yet");
-  }
-
-  public Status status() {
-    // TODO: Getter
-    throw new UnsupportedOperationException("method not implemented yet");
-  }
-
-  public Direction pendingDirection() {
-    // TODO: Getter
-    throw new UnsupportedOperationException("method not implemented yet");
-  }
-
-  public GameState tick() {
-    // TODO: diese Methode lässt das Spiel einen Schritt laufen (berechnet den Spielzustand im
-    // nächsten Schritt)
-
-    // TODO: early exit: wenn das Spiel nicht läuft oder keine Blickrichtung gesetzt ist: keine
-    // Änderung
-
-    // TODO: prüfe die folgenden Bedingungen:
-    // (a) Schlange würde das Spielfeld verlassen: Spiel verloren
-    // (b) Schlange würde in ein Wandelement gehen: Blockiert (keine Bewegung, Blickrichtung "none")
-    // (c) Schlange beisst sich: Spiel verloren
-    // (d) Schlange würde auf einen Pin gehen (Pin bereits gesetzt oder Schlange kommt nicht in der
-    // Aktivierungsrichtung): Blockiert (keine Bewegung, Blickrichtung "none")
-
-    // TODO: aktiviere einen noch nicht gesetzten Pin, wenn die Schlange in der richtigen Richtung
-    // auf den Pin gehen würde (die Schlange darf dabei aber nicht auf den Pin gehen)
-
-    // TODO: anderenfalls: bewege die Schlange um einen Schritt in Blickrichtung (falls gesetzt)
-    throw new UnsupportedOperationException("method not implemented yet");
-  }
-
-  public enum Status {
-    RUNNING,
-    WON,
-    LOST_SELF_COLLISION,
-    LOST_OUT_OF_BOUNDS;
-
-    public boolean isRunning() {
-      return this == RUNNING;
+    public GameState(
+        Level level, Snake snake, List<Pin> pins, Status status, Direction pendingDirection) {
+        this.level = level;
+        this.snake = snake;
+        this.pins = List.copyOf(pins);
+        this.status = status;
+        this.pendingDirection = pendingDirection;
     }
-  }
+
+    public Level level() {
+        return level;
+    }
+
+    public Snake snake() {
+        return snake;
+    }
+
+    public List<Pin> pins() {
+        return pins;
+    }
+
+    public Status status() {
+        return status;
+    }
+
+    public Direction pendingDirection() {
+        return pendingDirection;
+    }
+
+    public GameState tick() {
+        if (!status.isRunning() || pendingDirection == Direction.NONE) {
+            return this;
+        }
+
+        Position nextPosition = snake.nextHead(pendingDirection);
+
+        if (!level.isInside(nextPosition)) {
+            return withStatus(Status.LOST_OUT_OF_BOUNDS);
+        }
+
+        if (level.cellAt(nextPosition) == CellType.WALL) {
+            return withDirection(Direction.NONE);
+        }
+
+        if (snake.occupies(nextPosition)) {
+            return withStatus(Status.LOST_SELF_COLLISION);
+        }
+
+        Pin pin = pinAt(nextPosition);
+
+        if (pin != null) {
+            if (!pin.state().isSet() && pin.activationDirection() == pendingDirection) {
+                List<Pin> updatedPins = activatePin(pin);
+
+                Status newStatus =
+                    updatedPins.stream().allMatch(p -> p.state().isSet())
+                        ? Status.WON
+                        : Status.RUNNING;
+
+                return new GameState(level, snake, updatedPins, newStatus, Direction.NONE);
+            }
+
+            return withDirection(Direction.NONE);
+        }
+
+        Snake movedSnake = snake.grow(pendingDirection);
+
+        return new GameState(level, movedSnake, pins, status, pendingDirection);
+    }
+
+    private Pin pinAt(Position position) {
+        return pins.stream()
+            .filter(pin -> pin.position().equals(position))
+            .findFirst()
+            .orElse(null);
+    }
+
+    private List<Pin> activatePin(Pin pinToActivate) {
+        List<Pin> updatedPins = new ArrayList<>();
+
+        for (Pin pin : pins) {
+            if (pin.position().equals(pinToActivate.position())) {
+                updatedPins.add(pin.withState(Pin.State.HIGH));
+            } else {
+                updatedPins.add(pin);
+            }
+        }
+
+        return updatedPins;
+    }
+
+    private GameState withDirection(Direction direction) {
+        return new GameState(level, snake, pins, status, direction);
+    }
+
+    private GameState withStatus(Status newStatus) {
+        return new GameState(level, snake, pins, newStatus, pendingDirection);
+    }
+
+    public enum Status {
+        RUNNING,
+        WON,
+        LOST_SELF_COLLISION,
+        LOST_OUT_OF_BOUNDS;
+
+        public boolean isRunning() {
+            return this == RUNNING;
+        }
+    }
 }

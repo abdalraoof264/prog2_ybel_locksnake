@@ -1,6 +1,7 @@
 package de.hsbi.lockgame.ui;
 
-import de.hsbi.lockgame.logic.GameEngine;
+import de.hsbi.lockgame.logic.DirectionObserver;
+import de.hsbi.lockgame.logic.GameStateObserver;
 import de.hsbi.lockgame.logic.GameState;
 import de.hsbi.lockgame.model.Direction;
 import de.hsbi.lockgame.settings.GameConstants;
@@ -10,10 +11,9 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import javax.swing.*;
 
-public class GamePanel extends JPanel {
-  private GameState state;
+public class GamePanel extends JPanel implements GameStateObserver {  private GameState state;
   private final GameRenderer renderer;
-  private GameEngine gameEngine;
+    private DirectionObserver directionObserver;
 
   public GamePanel(GameState initialState, GameRenderer renderer) {
     this.state = initialState;
@@ -34,9 +34,9 @@ public class GamePanel extends JPanel {
     repaint();
   }
 
-  public void setGameEngine(GameEngine engine) {
-    this.gameEngine = engine;
-  }
+    public void setDirectionObserver(DirectionObserver observer) {
+        this.directionObserver = observer;
+    }
 
   private void setupKeyBindings(Direction direction, Iterable<Integer> keyCodes) {
     // Swing separates two layers: multiple keystrokes can be mapped to a single Action
@@ -53,7 +53,7 @@ public class GamePanel extends JPanel {
         new AbstractAction() {
           @Override
           public void actionPerformed(ActionEvent e) {
-            gameEngine.update(direction);
+              directionObserver.update(direction);
           }
         };
 
