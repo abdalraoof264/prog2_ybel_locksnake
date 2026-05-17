@@ -1,0 +1,202 @@
+@startuml
+title LockSnake UML-Klassendiagramm
+
+package "de.hsbi.lockgame" {
+    class Main {
+        +main(String[] args)
+        -handleGameEnd(ActionEvent, GameState, JFrame)
+    }
+}
+
+package "de.hsbi.lockgame.io" {
+    class LevelLoader {
+        +loadLevelFromPath(Path) Level
+        +loadLevelFromResource(String) Level
+        -parseLines(List<String>) Level
+    }
+
+    class MusicPlayer {
+        +playLoopFromResource(String)
+    }
+}
+
+package "de.hsbi.lockgame.logic" {
+    class GameEngine {
+        -GameState state
+        -List<GameStateObserver> observers
+        +GameEngine(Level)
+        +state() GameState
+        +addGameStateObserver(GameStateObserver)
+        +update(Direction)
+        +tick()
+        -notifyObservers()
+    }
+
+    class GameState {
+        -Level level
+        -Snake snake
+        -List<Pin> pins
+        -Status status
+        -Direction pendingDirection
+        +level() Level
+        +snake() Snake
+        +pins() List<Pin>
+        +status() Status
+        +pendingDirection() Direction
+        +tick() GameState
+    }
+
+    interface DirectionObserver {
+        +update(Direction)
+    }
+
+    interface GameStateObserver {
+        +update(GameState)
+    }
+
+    enum Status {
+        RUNNING
+        WON
+        LOST_SELF_COLLISION
+        LOST_OUT_OF_BOUNDS
+        +isRunning() boolean
+    }
+}
+
+package "de.hsbi.lockgame.model" {
+    class Level {
+        -int width
+        -int height
+        -CellType[][] cells
+        -List<Pin> pins
+        -Position snakeStart
+        +isInside(Position) boolean
+        +cellAt(Position) CellType
+        +width() int
+        +height() int
+        +cells() CellType[][]
+        +pins() List<Pin>
+        +snakeStart() Position
+    }
+
+    class Snake {
+        -List<Position> body
+        +head() Position
+        +body() List<Position>
+        +nextHead(Direction) Position
+        +occupies(Position) boolean
+        +grow(Direction) Snake
+    }
+
+    class Pin {
+        -Position position
+        -State state
+        -Direction activationDirection
+        +withState(State) Pin
+        +position() Position
+        +state() State
+        +activationDirection() Direction
+    }
+
+    class Position {
+        -int x
+        -int y
+        +x() int
+        +y() int
+        +equals(Object) boolean
+        +hashCode() int
+    }
+
+    enum Direction {
+        UP
+        DOWN
+        LEFT
+        RIGHT
+        NONE
+        +applyTo(Position) Position
+        +oppositeDirection() Direction
+    }
+
+    enum CellType {
+        EMPTY
+        WALL
+        PIN_SLOT
+    }
+
+
+}
+
+package "de.hsbi.lockgame.ui" {
+    class GamePanel {
+        -GameState state
+        -GameRenderer renderer
+        -DirectionObserver directionObserver
+        +GamePanel(GameState, GameRenderer)
+        +update(GameState)
+        +setDirectionObserver(DirectionObserver)
+        -setupKeyBindings(Direction, Iterable<Integer>)
+        #paintComponent(Graphics)
+    }
+}
+
+package "de.hsbi.lockgame.ui.render" {
+    interface GameRenderer {
+        +render(Graphics2D, GameState, int)
+    }
+
+    class Java2DRenderer {
+        +render(Graphics2D, GameState, int)
+    }
+
+    class TextureRenderer {
+        +TextureRenderer()
+        -loadImage(String) BufferedImage
+        +render(Graphics2D, GameState, int)
+    }
+}
+
+package "de.hsbi.lockgame.settings" {
+    class GameConstants
+    class InputConstants
+    class LevelConstants
+    class TextureConstants
+    class AudioConstants
+}
+
+Main --> LevelLoader : lädt Level
+Main --> GameEngine : erstellt
+Main --> GamePanel : erstellt
+Main --> Java2DRenderer : erstellt
+
+GameEngine --> GameState : verwaltet
+GameEngine ..|> DirectionObserver
+GameEngine --> GameStateObserver : benachrichtigt
+
+GamePanel ..|> GameStateObserver
+GamePanel --> DirectionObserver : informiert bei Tastendruck
+GamePanel --> GameRenderer : nutzt
+
+GameState --> Level
+GameState --> Snake
+GameState --> Pin
+GameState --> Direction
+GameState --> Status
+
+Level --> CellType
+Level --> Pin
+Level --> Position
+
+Snake --> Position
+Snake --> Direction
+
+Pin --> Position
+Pin --> Direction
+Pin --> State
+
+Java2DRenderer ..|> GameRenderer
+TextureRenderer ..|> GameRenderer
+
+InputConstants --> Direction
+LevelConstants --> LevelLoader
+
+@enduml
